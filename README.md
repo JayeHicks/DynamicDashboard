@@ -18,7 +18,7 @@ While I do provide source code snippets and technical guidance for implementing 
 
 ### Single-Page Web Application
 #### Application Overview
-The twelve files located in https://github.com/JayeHicks/DynamicDashboard/web-app constitute  the POC’s single-page web application.  All 12 files are hosted in an S3 bucket configured for static web hosting.  
+The twelve files located in https://github.com/JayeHicks/DynamicDashboard/tree/master/web-app constitute  the POC’s single-page web application.  All 12 files are hosted in an S3 bucket configured for static web hosting.  
 
 A quick study of the index.html will reveal that html button pushes result in invoking AWS-hosted Internet accessible endpoints.  Invoking such an endpoint (i.e., AWS API Gateway API) results in the execution of an AWS Lambda function.  The Lambda functions in turn access an Internet accessible endpoint, retrieve data of interest, format the data, and return the formatted data to the end user’s web browser.  More information on the Lambda functions is provided below in the “Data Acquisition” section.   This will serve as a simplified application architecture diagram.
 
@@ -164,7 +164,7 @@ I designed the POC such that a single API Gateway API is dedicated to acquiring 
 Creating API Gateway APIs that invoke Lambda functions is fairly straightforward as is creating Lambda functions that are triggered by API Gateway APIs.  A considerable amount of on-line documentation exists to help you with either task.
  
 #### Data Acquisition
-For the POC, I wrote python scripts that access Internet accessible endpoints, retrieve information, format the information, and return the formatted information back to the end user.  You can see the scripts used in the POC, and still in use today, at https://github.com/JayeHicks/DynamicDashboard/data-collection.  At this time, one of the original endpoints (i.e., in use since 2018) has changed format and I have yet to decide whether or not to employ a headless browser in order to secure the desired information.  While I would enjoy the challenge, it really just comes down to finding the free time. 
+For the POC, I wrote python scripts that access Internet accessible endpoints, retrieve information, format the information, and return the formatted information back to the end user.  You can see the scripts used in the POC, and still in use today, at https://github.com/JayeHicks/DynamicDashboard/tree/master/data-collection.  At this time, one of the original endpoints (i.e., in use since 2018) has changed format and I have yet to decide whether or not to employ a headless browser in order to secure the desired information.  While I would enjoy the challenge, it really just comes down to finding the free time. 
 
 #### Security
 The data collection Lambda functions can only be invoked by the API Gateway APIs.  Lambda Authorizers determine which single page web application end users can invoke an API Gateway API.  I kept things simple in the POC; a white list of Facebook User IDs is maintained in the Lambda Authorizer.
