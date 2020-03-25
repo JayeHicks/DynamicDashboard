@@ -1,0 +1,384 @@
+<!--
+  Jaye Hicks. Last updated 1/26/20
+  Live Music Calendar.  User must be authenticated by Facebook before being
+  allowed to call API Gateway endpoints. 
+  
+-->
+<!DOCTYPE html>
+<html>
+<head>
+<title>Live Music Schedule</title>
+<meta charset="UTF-8">
+</head>
+<body>
+
+<!--Facebook login button; when clicked execute FB.login()-->
+<fb:login-button scope="public_profile,email" onlogin="checkLoginState();">
+</fb:login-button>
+
+<div id="StatusDisplay">
+</div>
+
+<h2>Lava Cantina</h2>
+<input type="submit" class="buttons" value="Wed" id="lavaSchedWed" style="width:50px" disabled> &nbsp; &nbsp;
+<input type="submit" class="buttons" value="Fri" id="lavaSchedFri" style="width:50px" disabled> &nbsp; &nbsp;
+<input type="submit" class="buttons" value="Sat" id="lavaSchedSat" style="width:50px" disabled>
+<br>
+<table id="lcSchedTable">
+<font size="10">
+<colgroup>
+<col style="width:30%">
+<col style="width:5%">
+<col style="width:65%">
+</colgroup>
+<tbody>
+</tbody>
+</font>
+</table>
+
+<h2>The Revel</h2>
+<input type="submit" class="buttons" value="Wed" id="revelSchedWed" style="width:50px" disabled> &nbsp; &nbsp;
+<input type="submit" class="buttons" value="Fri" id="revelSchedFri" style="width:50px" disabled> &nbsp; &nbsp;
+<input type="submit" class="buttons" value="Sat" id="revelSchedSat" style="width:50px" disabled>
+<br>
+<table id="trSchedTable">
+<colgroup>
+<col style="width:30%">
+<col style="width:5%">
+<col style="width:65%">
+</colgroup>
+<tbody>
+</tbody>
+</table>
+
+<h2>Sambuca 360</h2>
+<input type="submit" class="buttons" value="Wed" id="sambuccaSchedWed" style="width:50px" disabled> &nbsp; &nbsp;
+<input type="submit" class="buttons" value="Fri" id="sambuccaSchedFri" style="width:50px" disabled> &nbsp; &nbsp;
+<input type="submit" class="buttons" value="Sat" id="sambuccaSchedSat" style="width:50px" disabled>
+<br>
+<table id="s3SchedTable">
+<colgroup>
+<col style="width:30%">
+<col style="width:5%">
+<col style="width:65%">
+</colgroup>
+<tbody>
+</tbody>
+</table>
+
+
+<h2>Scherlocks (Addison)</h2>
+<input type="submit" class="buttons" value="Wed" id="scherlocksSchedWed" style="width:50px" disabled> &nbsp; &nbsp;
+<input type="submit" class="buttons" value="Fri" id="scherlocksSchedFri" style="width:50px" disabled> &nbsp; &nbsp;
+<input type="submit" class="buttons" value="Sat" id="scherlocksSchedSat" style="width:50px" disabled>
+<br>
+<table id="saSchedTable">
+<colgroup>
+<col style="width:30%">
+<col style="width:5%">
+<col style="width:65%">
+</colgroup>
+<tbody>
+</tbody>
+</table>
+
+<!-- load AWS SDK and jQuery SDK -->
+<script src="https://sdk.amazonaws.com/js/aws-sdk-2.202.0.min.js"></script>
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.0/jquery.min.js"></script>
+
+<!-- the scripts required to securly invoke API Gateway endpoints via AWS' JavaScript API.  
+ API Gateway section of AWS Console generates 11 javascript files to enable
+ you to programmatically invoke API endpoints securely.  11 files per API.
+ 10 of them are identical.  I genericized the 11th file 'apigClient.js' so
+ that it can work across all of my API Gateway endpoints by adding the attriburte 
+ 'apiEndpoint' to the apigClient object -->
+<script type="text/javascript" src="axios.standalone.js"></script>
+<script type="text/javascript" src="hmac-sha256.js"></script>
+<script type="text/javascript" src="sha256.js"></script>
+<script type="text/javascript" src="hmac.js"></script>
+<script type="text/javascript" src="enc-base64.js"></script>
+<script type="text/javascript" src="url-template.js"></script>
+<script type="text/javascript" src="sigV4Client.js"></script>
+<script type="text/javascript" src="apiGatewayClient.js"></script>
+<script type="text/javascript" src="simpleHttpClient.js"></script>
+<script type="text/javascript" src="utils.js"></script>
+<script type="text/javascript" src="apigClient.js"></script>
+
+<script>
+var THE_REGION = 'us-east-1';
+var FB_USER_ID = '';
+var LIVE_MUSIC_CAL_FB_APP_ID = 'xxxxxxxxxxxxxxx';
+var COGNITO_ID_POOL_ID       = 'us-east-1:xxxxxxxx-yyyy-zzzz-xxxx-yyyyyyyyyyyyy';
+var TABLE_DISPLAY_NAME = {'lava' : 'lcSchedTable', 'revel': 'trSchedTable', 
+                          'sambucca': 's3SchedTable', 'scherlocks' : 'saSchedTable'};
+var API_URLS = {'lava' : 'url of one API Gateway endpoint',
+                'revel' : 'url of another API Gateway endpoint', 
+				'sambucca' : 'url of another API Gateway endpoint', 
+                'scherlocks' : 'example: https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com/prod'};
+
+//Results from FB.getLoginStatus() supplies this function's input parameter
+function statusChangeCallback(response) 
+{    
+  if (response.status === 'connected') 
+  {
+    //Facebook identity is authenticated so enable buttons 
+    enableCalendar();
+  } 
+  else 
+  {
+    //User not logged into Facebook; prompt them to log on
+    document.getElementById('StatusDisplay').innerHTML = 'The Live Music ' +
+      'Calendar website does not support anonymous access.  Please use ' +
+      'the Facebook log on button to enable the calendar buttons.';
+    toggleButtons('disable');
+  }
+}
+
+//Callback for Facebook logon button; check login status and pass results
+//to function that will take appropriate aciton based on status 
+function checkLoginState() 
+{
+  FB.getLoginStatus(function(response) 
+  {
+    statusChangeCallback(response);
+  });
+}
+
+//Called after Facebook JavaScript SDK loads
+window.fbAsyncInit = function() 
+{
+  //Set variable FB as our registered Facebook application
+  FB.init(
+  {
+    appId      : LIVE_MUSIC_CAL_FB_APP_ID, //Facebook issued ID (upon App reg)
+    cookie     : true,                     //enable server to session data
+    xfbml      : true,                     //parse social plugins on this page 
+    version    : 'v2.12'                   // version of Facebook API
+  });
+
+  //perform an initial FB log in status check
+  checkLoginState();
+};
+
+//Sourced this from FB developers site.  Asynchronously loads the Facebook JavaScript SDK
+(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "https://connect.facebook.net/en_US/sdk.js";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));
+
+//Call FB.login. If requestor is logged onto Facebook, add identity to Cognito Identity Pool
+//then procure temporary AWS security credentials to access API Gateway endpoints
+function enableCalendar()
+{
+  FB.login(function (response1) 
+  {
+    //if user logged into Facebook allow access to API Gateway endpoints
+    if (response1.authResponse) 
+    {
+      FB_USER_ID = response1.authResponse.userID;
+      FB.api('/me', function(response2) 
+      {
+        document.getElementById('StatusDisplay').innerHTML = 
+        "Welcome " + response2.name + " to the Live Music " +
+        "Calendar website.";
+        toggleButtons('enable');
+            
+        //add FB authenticated identity into Cognito Identity Pool
+        //procure temporary AWS credentials to enable access to AWS services
+        AWS.config.region = THE_REGION;
+        AWS.config.credentials = 
+		  new AWS.CognitoIdentityCredentials(
+		  {IdentityPoolId: COGNITO_ID_POOL_ID,
+            Logins: 
+		    {
+              'graph.facebook.com': response1.authResponse.accessToken
+            }
+          });
+
+        AWS.config.credentials.refresh((error) => 
+        {
+          if (error) 
+          { 
+		    console.error(error);
+		  } 
+          else 
+          {
+		    console.log('logged into FB and access token in Cognito ' +
+                        'credentials map');
+		  }
+        });
+      });
+    } 
+    else 
+    {
+        //User not logged into Facebook; prompt them to log on
+        document.getElementById('StatusDisplay').innerHTML = 'The ' +
+        'Music Calendar website does not support anonymous access.  ' +
+        'Please use the Facebook log on button to enable the ' +
+        'calendar buttons.';
+        toggleButtons('disable');
+      }
+  });
+}
+
+//Based on parameter either enable buttons to disable them
+function toggleButtons(mode) 
+{
+  if(mode === 'enable')
+  {
+    value = false;
+  }
+  else
+  {
+    value = true;
+  }
+  document.getElementById("lavaSchedWed").disabled = value;
+  document.getElementById("lavaSchedFri").disabled = value;
+  document.getElementById("lavaSchedSat").disabled = value;
+  document.getElementById("revelSchedWed").disabled = value;
+  document.getElementById("revelSchedFri").disabled = value;
+  document.getElementById("revelSchedSat").disabled = value;
+  document.getElementById("sambuccaSchedWed").disabled = value;
+  document.getElementById("sambuccaSchedFri").disabled = value;
+  document.getElementById("sambuccaSchedSat").disabled = value;
+  document.getElementById("scherlocksSchedWed").disabled = value;
+  document.getElementById("scherlocksSchedFri").disabled = value;
+  document.getElementById("scherlocksSchedSat").disabled = value;
+}
+  
+//clear results from a previous schedule display
+function ClearScreen()
+{
+  $("#lcSchedTable tbody tr").remove();
+  $("#trSchedTable tbody tr").remove();
+  $("#s3SchedTable tbody tr").remove();
+  $("#saSchedTable tbody tr").remove();
+}
+
+//Parameters: venue location and day of week
+//Call appropriate AWS API Gateway endpoint and then display schedule
+function GenerateSchedule(location,day)
+{
+  var table_name = TABLE_DISPLAY_NAME[location];
+  var table = document.getElementById(table_name).getElementsByTagName('tbody')[0];
+  var theURL = API_URLS[location];
+ 
+  var apigClient = apigClientFactory.newClient(
+  {
+    accessKey: AWS.config.credentials.accessKeyId,
+    secretKey: AWS.config.credentials.secretAccessKey,
+    sessionToken: AWS.config.credentials.sessionToken, 
+    region: THE_REGION,  
+    apiEndpoint: theURL         // allows apigClient.js to work for multiple endpoints
+  });
+
+  // the query string parameters to use invoking API endpoint
+  var params = 
+  {
+    'dayId' : day,
+    'fbUserId' : FB_USER_ID
+	
+	//open up to world by hardwiring fbUserId to a Facebook user id that has access.
+    //grant a Facebook user id access via IAM policy assigned to IAM role assigned
+	//associated with application access via Cognito Identity Pool	
+  };
+  
+  ClearScreen();
+
+  //asynchronously call API endpoint to procure the music schedule for venue
+  apigClient.rootGet(params, {}, {}).then(function(result)
+  {
+    // successfully called API Gateway endpoint
+    if(result == undefined)
+    {
+      console.log('API Gateway returned successful status but response ' +
+                  ' object is undefined');
+    }
+    else
+    {
+      var results = result.data;
+	  
+	  //iterate through results (i.e., list of JSON objects) to create table
+	  if(results.length > 0)
+	  {
+        var date = '';
+        var band = '';
+        var newRow;
+        for (var i = 0; i < results.length; i++)
+        {
+          var obj = results[i];
+          for (var key in obj)
+          {
+            if(date == '') 
+            {
+		      date = obj[key];
+		    }
+            else
+		    {
+			  band = obj[key];
+			  if(band.length > 25)
+			  {
+		        band = band.substring(0,22);
+				band = band + '...';
+			  }
+		    }
+          }
+          newRow = table.insertRow(table.rows.length);
+          newRow.innerHTML = "<tr><td>" + date + "</td><td>" + ' ' + 
+                           "</td><td>" + band + "</td></tr>";
+          date = '';
+          band = '';
+        }
+	  }
+	  else
+	  {
+	    var newRow = table.insertRow(table.rows.length);
+        newRow.innerHTML = "<tr><td>" + 'no upcoming' + "</td><td>" +
+          '  ' + "</td><td>" + ' scheduled events' + "</td></tr>";
+	  }
+    }
+  }).catch(function(result)
+  {
+    // unsuccesful attempt to invoke API Gateway endpoint
+    console.log('AWS API Gateway returned error status');
+    console.log('Returned value is ' + JSON.stringify(result,null,2));
+    
+    var newRow = table.insertRow(table.rows.length);
+    newRow.innerHTML = "<tr><td>" + 'comms error' + "</td><td>" +
+      '  ' + "</td><td>" + ' or no auth/athen' + "</td></tr>";
+  });
+}
+
+//define button behavior
+document.getElementById("lavaSchedWed").onclick = function()
+  { GenerateSchedule('lava', 'Wed'); }
+document.getElementById("lavaSchedFri").onclick = function()
+  { GenerateSchedule('lava', 'Fri'); }
+document.getElementById("lavaSchedSat").onclick = function()
+  { GenerateSchedule('lava', 'Sat'); }
+document.getElementById("sambuccaSchedWed").onclick = function()
+  { GenerateSchedule('sambucca', 'Wed'); }
+document.getElementById("sambuccaSchedFri").onclick = function()
+  { GenerateSchedule('sambucca', 'Fri'); }
+document.getElementById("sambuccaSchedSat").onclick = function()
+  { GenerateSchedule('sambucca', 'Sat'); }
+document.getElementById("revelSchedWed").onclick = function()
+  { GenerateSchedule('revel', 'Wed'); }
+document.getElementById("revelSchedFri").onclick = function()
+  { GenerateSchedule('revel', 'Fri'); }
+document.getElementById("revelSchedSat").onclick = function()
+  { GenerateSchedule('revel', 'Sat'); }  
+document.getElementById("scherlocksSchedWed").onclick = function()
+  { GenerateSchedule('scherlocks', 'Wed'); }
+document.getElementById("scherlocksSchedFri").onclick = function()
+  { GenerateSchedule('scherlocks', 'Fri'); }
+document.getElementById("scherlocksSchedSat").onclick = function()
+  { GenerateSchedule('scherlocks', 'Sat'); }
+
+</script>
+
+</body>
+</html>
