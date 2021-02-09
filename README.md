@@ -31,7 +31,7 @@ The eleven JavaScript files were generated using the API Gateway portion of the 
 #### Security
 The POC single page web application requires both authentication and authorization before an end user can gain access to any application functionality. 
   
-Authentication is achieved through Web Identity Federation with Facebook.  In the file index.html you can see the JavaScript functions enabling this federation.  In addition to adding the Facebook federation JavaScript to your single page web application, two preliminary actions are required.  First, you must access the Facebook app development website in order to set up a Facebook app and thereby obtain a Facebook app id.  Second, you must create and configure an AWS Cognito User Identity Pool that trusts users who are successfully log into Facebook.  While configuring the User Identity Pool, in “Authentication Providers” select the “Facebook” tab so that you can enter the Facebook App ID that was obtained in step one.  Creating a User Identity Pool results in the automatic creation of two IAM roles.  Even though authorization will be handled by Lambda Authorizers on each individual API Gateway endpoint, ensure that you do not delete or reduce permission level on either of these IAM roles.   
+Authentication is achieved through Web Identity Federation with Facebook.  In the file index.html you can see the JavaScript functions enabling this federation.  In addition to adding the Facebook federation JavaScript to your single page web application, two preliminary actions are required.  First, you must access the Facebook app development website in order to set up a Facebook app and thereby obtain a Facebook app id.  Second, you must create and configure an AWS Cognito User Identity Pool that trusts users who are successfully logged into Facebook.  While configuring the User Identity Pool, in “Authentication Providers” select the “Facebook” tab so that you can enter the Facebook App ID that was obtained in step one.  Creating a User Identity Pool results in the automatic creation of two IAM roles.  Even though authorization will be handled by Lambda Authorizers on each individual API Gateway endpoint, ensure that you do not delete or reduce permission level on either of these IAM roles.   
 
 In the POC single page web application’s initial default state, the push button controls necessary to invoke the functionality behind the API Gateway endpoints are inactive.  When any end user is properly authenticated via Facebook the state of these push button controls changes to active.  However, while anyone who authenticated via Facebook can click these push button controls, only a limited number of named individuals can successfully invoke the functionality behind the API Gateway endpoints.
 
@@ -41,7 +41,7 @@ To set up Lambda Authorizers for your API Gateway APIs first create your Lambda 
 
 Here is a genericized template that you can use to get started building your Lambda Authorizer.  In this template a request is “authorized” only if the client-supplied HeaderAuth1 header, QueryString1 query parameter, stage variable of StageVar1, and the accountId in the request context all match the specified values of 'headerValue1', 'queryValue1', 'stageValue1', and '123456789012', respectively.  While this example demonstrates three different mechanisms, for authorization in the POC I only used a single query string parameter.
 
-'''
+```
 import re
 
 #Facebook user ids
@@ -219,7 +219,7 @@ class AuthPolicy(object):
       self._getStatementForEffect('Deny', self.denyMethods))
 
     return(policy)
-'''
+```
 
 An application architecture diagram depicting the flow of execution (starting with end user log on through to successful access of application functionality) is presented below, but broken up into two diagrams.  A single diagram would have involved an overwhelming amount of detail.  The first diagram illustrates the general flow from end user logon through to attempting to invoke application functionality.  Authorization is required to invoke the application’s functionality and this authorization flow is depicted in the second diagram.  If you want to conceptually integrate the two diagrams, step 8 from the first diagram roughly translates picks up in step 4 of the second diagram. 
 
