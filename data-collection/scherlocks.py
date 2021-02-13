@@ -1,4 +1,16 @@
 """
+Jaye Hicks
+
+Obligatory legal disclaimer:
+ You are free to use this source code (this file and all other files 
+ referenced in this file) "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER 
+ EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED 
+ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE 
+ ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THIS SOURCE CODE IS WITH 
+ YOU.  SHOULD THE SOURCE CODE PROVE DEFECTIVE, YOU ASSUME THE COST OF ALL 
+ NECESSARY SERVICING, REPAIR OR CORRECTION. See the GNU GENERAL PUBLIC 
+ LICENSE Version 3, 29 June 2007 for more details. 
+ 
 This module contains Python code designed to be an AWS Lambda funciton invoked
 by an end user call to an AWS API Gateway endpoint.  The user call supplies 
 a query string parameter that is in turn made available to this function
